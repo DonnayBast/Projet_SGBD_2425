@@ -20,4 +20,21 @@ SELECT OTI, WTI, ATI FROM projet_overview WHERE ROWNUM <= 5;
 SELECT * FROM projet_overview WHERE OTI IS NULL;
 
 
+--PHASE2
+Copie de la table externe : 
+CREATE TABLE projet_overview_internal AS
+SELECT *
+FROM projet_overview;
 
+Création du module : projet_internal_random
+pour afficher 10 lignes aléatoires 
+code sql dans le GET : 
+SELECT *
+    FROM (
+        SELECT *
+        FROM projet_overview_internal
+        ORDER BY DBMS_RANDOM.VALUE
+    )
+    WHERE ROWNUM <= 10
+
+URL d'accès : http://localhost:8080/ords/hr/projet/projet_internal_random
