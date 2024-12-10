@@ -1,0 +1,23 @@
+- Déplacer le fichier Overview dans la vm puis le copier dans le dosier u01/app qui est spécifiquement conçus pour des accès oracle
+cp ~/Desktop/Overview.csv /u01/app/
+
+
+
+- Créer le répertoire et tester si il a bien été créer 
+
+CREATE OR REPLACE DIRECTORY data_dir AS '/u01/app';
+
+SELECT directory_name, directory_path
+FROM all_directories
+WHERE directory_name = 'DATA_DIR';
+
+- Création de la table externe et jeu de test pour tester si elle à bien été créer 
+
+SELECT * FROM projet_overview FETCH FIRST 10 ROWS ONLY;
+
+SELECT OTI, WTI, ATI FROM projet_overview WHERE ROWNUM <= 5;
+
+SELECT * FROM projet_overview WHERE OTI IS NULL;
+
+
+
