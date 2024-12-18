@@ -45,38 +45,10 @@ CREATE TABLE snapshots (
 );
 
 --Récupérer le snapshots GET
-SELECT id, TO_CHAR(timestamp, ''YYYY-MM-DD HH24:MI:SS'') AS ts,
-                     UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(image)) AS base64_image
-                     FROM snapshots
---Procédure pour sauvergarder un Snapshots 
-CREATE OR REPLACE FUNCTION BLOB_TO_BASE64(blob_data BLOB) RETURN CLOB IS
-    base64_clob CLOB;
-    raw_chunk RAW(2000); -- On utilise des chunks de taille plus petite pour éviter les dépassements
-    chunk_size INTEGER := 2000; -- Taille du chunk ajustée
-    blob_length INTEGER;
-    offset INTEGER := 1; -- Début de lecture
-BEGIN
-    -- Créer un CLOB temporaire
-    DBMS_LOB.CREATETEMPORARY(base64_clob, TRUE);
-
-    -- Longueur totale du BLOB
-    blob_length := DBMS_LOB.GETLENGTH(blob_data);
-
-    -- Lire le BLOB en chunks et encoder en Base64
-    WHILE offset <= blob_length LOOP
-        -- Lire un chunk de données brutes
-        raw_chunk := DBMS_LOB.SUBSTR(blob_data, chunk_size, offset);
-
-        -- Encoder en Base64 et ajouter au CLOB
-        DBMS_LOB.APPEND(base64_clob, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(raw_chunk)));
-
-        -- Passer au prochain chunk
-        offset := offset + chunk_size;
-    END LOOP;
-
-    RETURN base64_clob;
-END;
-/
+SELECT id,
+       TO_CHAR(timestamp, 'YYYY-MM-DD HH24:MI:SS') AS ts,
+       BLOB_TO_BASE64_PARTS(image) AS base64_image
+FROM snapshots;
 CREATE OR REPLACE PROCEDURE SAVE_SNAPSHOT(image_base64 CLOB, ts VARCHAR2) IS
     decoded_image BLOB;
 BEGIN
@@ -91,4 +63,26 @@ BEGIN
 END;
 /
 
+--Pour fichiers trop volumineux 
+CREATE OR REPLACE FUNCTION BLOB_TO_BASE64_PARTS(blob_data IN BLOB) RETURN CLOB IS
+    clob_data CLOB;
+    blob_len INTEGER;
+    piece_len CONSTANT INTEGER := 32767; -- Limite de taille par morceau
+    offset INTEGER := 1;
+BEGIN
+    blob_len := DBMS_LOB.GETLENGTH(blob_data);
+    DBMS_LOB.CREATETEMPORARY(clob_data, TRUE);
+    
+    WHILE offset <= blob_len LOOP
+        DBMS_LOB.WRITEAPPEND(
+            clob_data,
+            LEAST(piece_len, blob_len - offset + 1),
+            UTL_RAW.CAST_TO_VARCHAR2(DBMS_LOB.SUBSTR(blob_data, LEAST(piece_len, blob_len - offset + 1), offset))
+        );
+        offset := offset + piece_len;
+    END LOOP;
+
+    RETURN clob_data;
+END;
+/
 
